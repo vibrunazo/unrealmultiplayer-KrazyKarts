@@ -23,13 +23,7 @@ void AGoKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// FVector NewLoc = GetActorLocation();
-	// SetActorRelativeLocation();
-	CurSpeed += DeltaTime * Accel * ForwardAxis;
-	CurSpeed *= (1.0f - Friction);
-	FVector NewSpeed = GetActorForwardVector() * CurSpeed;
-	AddActorWorldOffset(NewSpeed);
-
+	UpdateLocation(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -47,4 +41,17 @@ void AGoKart::MoveForward(float Val)
 {
 	// UE_LOG(LogTemp, Warning, TEXT("move forward by %f"), Val);
 	ForwardAxis = Val;
+}
+
+void AGoKart::UpdateLocation(float DeltaTime)
+{
+	CurSpeed += DeltaTime * Accel * ForwardAxis;
+	CurSpeed *= (1.0f - Friction);
+	FVector NewSpeed = GetActorForwardVector() * CurSpeed;
+	FHitResult OutSweepHitResult;
+	AddActorWorldOffset(NewSpeed, true, &OutSweepHitResult);
+	if (OutSweepHitResult.IsValidBlockingHit())
+	{
+		CurSpeed = 0;
+	}
 }

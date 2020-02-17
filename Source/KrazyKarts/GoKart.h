@@ -34,6 +34,7 @@ public:
 	float Friction = 0.02f;
 
 private:
+	void UpdateLocation(float DeltaTime);
 	float ForwardAxis = 0.0f;
 
 };
