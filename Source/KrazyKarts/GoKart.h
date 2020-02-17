@@ -26,4 +26,14 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	void MoveForward(float Val);
+	float CurSpeed = 0.0f;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
+	float Accel = 80.0f;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
+	float Friction = 0.02f;
+
+private:
+	float ForwardAxis = 0.0f;
+
 };
