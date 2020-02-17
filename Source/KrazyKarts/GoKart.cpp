@@ -34,6 +34,7 @@ void AGoKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	check(PlayerInputComponent);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &AGoKart::MoveForward);
+	PlayerInputComponent->BindAxis("MoveRight", this, &AGoKart::MoveRight);
 
 }
 
@@ -43,11 +44,24 @@ void AGoKart::MoveForward(float Val)
 	ForwardAxis = Val;
 }
 
+void AGoKart::MoveRight(float Val)
+{
+	RightAxis = Val;
+}
+
 void AGoKart::UpdateLocation(float DeltaTime)
 {
 	CurSpeed += DeltaTime * Accel * ForwardAxis;
 	CurSpeed *= (1.0f - Friction);
 	FVector NewSpeed = GetActorForwardVector() * CurSpeed;
+
+	CurTurnSpeed += TurnAccel * DeltaTime * RightAxis;
+	if (CurTurnSpeed * RightAxis <= 0) CurTurnSpeed *= (1 - TurnFriction);
+	CurTurnSpeed = FMath::Clamp(CurTurnSpeed, -MaxTurnSpeed, MaxTurnSpeed);
+	FQuat NewRotation(GetActorUpVector(), FMath::DegreesToRadians(CurTurnSpeed));
+
+	AddActorWorldRotation(NewRotation);
+
 	FHitResult OutSweepHitResult;
 	AddActorWorldOffset(NewSpeed, true, &OutSweepHitResult);
 	if (OutSweepHitResult.IsValidBlockingHit())
