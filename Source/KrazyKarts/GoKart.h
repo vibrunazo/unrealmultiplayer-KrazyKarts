@@ -34,15 +34,18 @@ public:
 	float Accel = 80.0f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
 	float Friction = 0.02f;
+	// UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
+	// float MaxTurnSpeed = 80.0f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
-	float MaxTurnSpeed = 80.0f;
+	float TurnAccel = 0.2f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
-	float TurnAccel = 20.0f;
+	float TurnRadius = 20.0f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
 	float TurnFriction = 0.08f;
 
 private:
 	void UpdateLocation(float DeltaTime);
+	void UpdateRotation(float DeltaTime);
 	float ForwardAxis = 0.0f;
 	float RightAxis = 0.0f;
 

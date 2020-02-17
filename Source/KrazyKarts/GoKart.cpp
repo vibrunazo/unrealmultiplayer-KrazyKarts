@@ -23,6 +23,7 @@ void AGoKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	UpdateRotation(DeltaTime);
 	UpdateLocation(DeltaTime);
 }
 
@@ -49,18 +50,22 @@ void AGoKart::MoveRight(float Val)
 	RightAxis = Val;
 }
 
+void AGoKart::UpdateRotation(float DeltaTime)
+{
+	CurTurnSpeed += TurnAccel * DeltaTime * RightAxis;
+	if (CurTurnSpeed * RightAxis <= 0) CurTurnSpeed *= (1 - TurnFriction);
+	CurTurnSpeed = FMath::Clamp(CurTurnSpeed, -1.0f, 1.0f);
+	float TurnAngle = CurSpeed * CurTurnSpeed / TurnRadius;
+	FQuat NewRotation(GetActorUpVector(), FMath::DegreesToRadians(TurnAngle));
+
+	AddActorWorldRotation(NewRotation);
+}
+
 void AGoKart::UpdateLocation(float DeltaTime)
 {
 	CurSpeed += DeltaTime * Accel * ForwardAxis;
 	CurSpeed *= (1.0f - Friction);
 	FVector NewSpeed = GetActorForwardVector() * CurSpeed;
-
-	CurTurnSpeed += TurnAccel * DeltaTime * RightAxis;
-	if (CurTurnSpeed * RightAxis <= 0) CurTurnSpeed *= (1 - TurnFriction);
-	CurTurnSpeed = FMath::Clamp(CurTurnSpeed, -MaxTurnSpeed, MaxTurnSpeed);
-	FQuat NewRotation(GetActorUpVector(), FMath::DegreesToRadians(CurTurnSpeed));
-
-	AddActorWorldRotation(NewRotation);
 
 	FHitResult OutSweepHitResult;
 	AddActorWorldOffset(NewSpeed, true, &OutSweepHitResult);
