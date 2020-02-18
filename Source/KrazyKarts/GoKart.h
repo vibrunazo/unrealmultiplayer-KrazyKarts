@@ -30,6 +30,8 @@ public:
 	void Server_MoveForward(float Val);
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_MoveRight(float Val);
+	void MoveForward(float Val);
+	void MoveRight(float Val);
 	float CurSpeed = 0.0f;
 	float CurTurnSpeed = 0.0f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
