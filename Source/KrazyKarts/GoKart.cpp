@@ -24,7 +24,7 @@ void AGoKart::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	UpdateRotation(DeltaTime);
-	UpdateLocation(DeltaTime);
+	Server_UpdateLocation_Implementation(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -34,20 +34,27 @@ void AGoKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 	check(PlayerInputComponent);
 
-	PlayerInputComponent->BindAxis("MoveForward", this, &AGoKart::MoveForward);
-	PlayerInputComponent->BindAxis("MoveRight", this, &AGoKart::MoveRight);
+	PlayerInputComponent->BindAxis("MoveForward", this, &AGoKart::Server_MoveForward);
+	PlayerInputComponent->BindAxis("MoveRight", this, &AGoKart::Server_MoveRight);
 
 }
 
-void AGoKart::MoveForward(float Val)
+void AGoKart::Server_MoveForward_Implementation(float Val)
 {
-	// UE_LOG(LogTemp, Warning, TEXT("move forward by %f"), Val);
 	ForwardAxis = Val;
 }
+bool AGoKart::Server_MoveForward_Validate(float Val)
+{
+	return FMath::Abs(Val) <= 1;
+}
 
-void AGoKart::MoveRight(float Val)
+void AGoKart::Server_MoveRight_Implementation(float Val)
 {
 	RightAxis = Val;
+}
+bool AGoKart::Server_MoveRight_Validate(float Val)
+{
+	return FMath::Abs(Val) <= 1;
 }
 
 void AGoKart::UpdateRotation(float DeltaTime)
@@ -61,7 +68,7 @@ void AGoKart::UpdateRotation(float DeltaTime)
 	AddActorWorldRotation(NewRotation);
 }
 
-void AGoKart::UpdateLocation(float DeltaTime)
+void AGoKart::Server_UpdateLocation_Implementation(float DeltaTime)
 {
 	CurSpeed += DeltaTime * Accel * ForwardAxis;
 	CurSpeed *= (1.0f - Friction);
@@ -73,4 +80,9 @@ void AGoKart::UpdateLocation(float DeltaTime)
 	{
 		CurSpeed = 0;
 	}
+}
+
+bool AGoKart::Server_UpdateLocation_Validate(float DeltaTime)
+{
+	return true;
 }
