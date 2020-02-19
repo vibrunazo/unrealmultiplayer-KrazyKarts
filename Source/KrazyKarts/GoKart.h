@@ -46,10 +46,11 @@ public:
 	float TurnRadius = 20.0f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
 	float TurnFriction = 0.08f;
+	UPROPERTY(replicated)
+	FTransform ReplicatedTran = GetActorTransform();
 
 private:
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_UpdateLocation(float DeltaTime);
+	void UpdateLocation(float DeltaTime);
 	void UpdateRotation(float DeltaTime);
 	float ForwardAxis = 0.0f;
 	float RightAxis = 0.0f;

@@ -1,14 +1,16 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
+#include "GoKart.h"
 #include "Components/InputComponent.h"
 #include "DrawDebugHelpers.h"
-#include "GoKart.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 AGoKart::AGoKart()
 {
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+	bReplicates = true;
 
 }
 
@@ -17,6 +19,12 @@ void AGoKart::BeginPlay()
 {
 	Super::BeginPlay();
 	
+}
+
+void AGoKart::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    DOREPLIFETIME( AGoKart, ReplicatedTran );
 }
 
 FString GetEnumText(ENetRole Role)
@@ -42,9 +50,19 @@ void AGoKart::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	UpdateRotation(DeltaTime);
-	Server_UpdateLocation_Implementation(DeltaTime);
+	UpdateLocation(DeltaTime);
 
-	DrawDebugString(GetWorld(), FVector(0, 0, 100), GetEnumText(Role), this, FColor::Green, 0.0f);
+	if (GetLocalRole() == ROLE_Authority) 
+	{
+		ReplicatedTran = GetActorTransform();
+	}
+	else
+	{
+		SetActorTransform(ReplicatedTran);
+	}
+
+	DrawDebugString(GetWorld(), FVector(0, 0, 100), GetEnumText(GetLocalRole()), this, FColor::Green, 0.0f);
+	DrawDebugString(GetWorld(), FVector(0, 0, 130), ReplicatedTran.GetLocation().ToString(), this, FColor::Yellow, 0.0f);
 }
 
 // Called to bind functionality to input
@@ -98,7 +116,7 @@ void AGoKart::UpdateRotation(float DeltaTime)
 	AddActorWorldRotation(NewRotation);
 }
 
-void AGoKart::Server_UpdateLocation_Implementation(float DeltaTime)
+void AGoKart::UpdateLocation(float DeltaTime)
 {
 	CurSpeed += DeltaTime * Accel * ForwardAxis;
 	CurSpeed *= (1.0f - Friction);
@@ -110,9 +128,4 @@ void AGoKart::Server_UpdateLocation_Implementation(float DeltaTime)
 	{
 		CurSpeed = 0;
 	}
-}
-
-bool AGoKart::Server_UpdateLocation_Validate(float DeltaTime)
-{
-	return true;
 }
