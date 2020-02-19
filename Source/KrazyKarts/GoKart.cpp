@@ -18,7 +18,10 @@ AGoKart::AGoKart()
 void AGoKart::BeginPlay()
 {
 	Super::BeginPlay();
-	
+	if (HasAuthority())
+	{
+		NetUpdateFrequency = 1;
+	}
 }
 
 void AGoKart::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const
@@ -52,13 +55,9 @@ void AGoKart::Tick(float DeltaTime)
 	UpdateRotation(DeltaTime);
 	UpdateLocation(DeltaTime);
 
-	if (GetLocalRole() == ROLE_Authority) 
+	if (HasAuthority()) 
 	{
 		ReplicatedTran = GetActorTransform();
-	}
-	else
-	{
-		SetActorTransform(ReplicatedTran);
 	}
 
 	DrawDebugString(GetWorld(), FVector(0, 0, 100), GetEnumText(GetLocalRole()), this, FColor::Green, 0.0f);
@@ -128,4 +127,10 @@ void AGoKart::UpdateLocation(float DeltaTime)
 	{
 		CurSpeed = 0;
 	}
+}
+
+void AGoKart::OnRep_ReplicatedTran()
+{
+	UE_LOG(LogTemp, Warning, TEXT("Replicated Transforms! on %s"), *GetEnumText(GetLocalRole()));
+	SetActorTransform(ReplicatedTran);
 }

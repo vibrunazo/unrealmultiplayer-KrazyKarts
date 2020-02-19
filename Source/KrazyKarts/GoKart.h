@@ -32,6 +32,9 @@ public:
 	void Server_MoveRight(float Val);
 	void MoveForward(float Val);
 	void MoveRight(float Val);
+	UFUNCTION()
+	void OnRep_ReplicatedTran();
+
 	float CurSpeed = 0.0f;
 	float CurTurnSpeed = 0.0f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
@@ -46,7 +49,7 @@ public:
 	float TurnRadius = 20.0f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
 	float TurnFriction = 0.08f;
-	UPROPERTY(replicated)
+	UPROPERTY(ReplicatedUsing="OnRep_ReplicatedTran")
 	FTransform ReplicatedTran = GetActorTransform();
 
 private:
