@@ -28,6 +28,10 @@ void AGoKart::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifet
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME( AGoKart, ReplicatedTran );
+    DOREPLIFETIME( AGoKart, CurSpeed );
+    DOREPLIFETIME( AGoKart, CurTurnSpeed );
+    DOREPLIFETIME( AGoKart, ForwardAxis );
+    DOREPLIFETIME( AGoKart, RightAxis );
 }
 
 FString GetEnumText(ENetRole Role)
@@ -58,10 +62,15 @@ void AGoKart::Tick(float DeltaTime)
 	if (HasAuthority()) 
 	{
 		ReplicatedTran = GetActorTransform();
+		// ReplicatedSpeed = CurSpeed;
 	}
-
+	// FString SpeedString = FString::Printf(TEXT("%F"), ReplicatedSpeed);
+	FString SpeedString = FString::Printf(TEXT("%F"), CurSpeed);
+	FString TurnString = FString::Printf(TEXT("%F"), CurTurnSpeed);
 	DrawDebugString(GetWorld(), FVector(0, 0, 100), GetEnumText(GetLocalRole()), this, FColor::Green, 0.0f);
 	DrawDebugString(GetWorld(), FVector(0, 0, 130), ReplicatedTran.GetLocation().ToString(), this, FColor::Yellow, 0.0f);
+	DrawDebugString(GetWorld(), FVector(0, 0, 160), SpeedString, this, FColor::Yellow, 0.0f);
+	DrawDebugString(GetWorld(), FVector(0, 0, 190), TurnString, this, FColor::Yellow, 0.0f);
 }
 
 // Called to bind functionality to input
@@ -119,6 +128,7 @@ void AGoKart::UpdateLocation(float DeltaTime)
 {
 	CurSpeed += DeltaTime * Accel * ForwardAxis;
 	CurSpeed *= (1.0f - Friction);
+	if (FMath::Abs(CurSpeed) < 1.0f) CurSpeed = 0.0f;
 	FVector NewSpeed = GetActorForwardVector() * CurSpeed;
 
 	FHitResult OutSweepHitResult;
@@ -134,3 +144,9 @@ void AGoKart::OnRep_ReplicatedTran()
 	UE_LOG(LogTemp, Warning, TEXT("Replicated Transforms! on %s"), *GetEnumText(GetLocalRole()));
 	SetActorTransform(ReplicatedTran);
 }
+
+// void AGoKart::OnRep_ReplicatedSpeed()
+// {
+// 	CurSpeed = ReplicatedSpeed;
+// 	UE_LOG(LogTemp, Warning, TEXT("Replicated Speed of %d! on %s"), CurSpeed, *GetEnumText(GetLocalRole()));
+// }
