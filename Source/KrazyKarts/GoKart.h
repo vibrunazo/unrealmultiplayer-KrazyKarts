@@ -54,20 +54,22 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	// UFUNCTION(Server, Reliable, WithValidation)
+	// void Server_MoveForward(float Val);
+	// UFUNCTION(Server, Reliable, WithValidation)
+	// void Server_MoveRight(float Val);
 	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_MoveForward(float Val);
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_MoveRight(float Val);
+	void Server_Move(FGoKartMove Move);
 	void MoveForward(float Val);
 	void MoveRight(float Val);
-	UFUNCTION()
-	void OnRep_ReplicatedTran();
 	// UFUNCTION()
-	// void OnRep_ReplicatedSpeed();
+	// void OnRep_ReplicatedTran();
+	UFUNCTION()
+	void OnRep_ServerState();
 
-	UPROPERTY(Replicated)
+	// UPROPERTY(Replicated)
 	float CurSpeed = 0.0f;
-	UPROPERTY(Replicated)
+	// UPROPERTY(Replicated)
 	float CurTurnSpeed = 0.0f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
 	float Accel = 80.0f;
@@ -81,14 +83,19 @@ public:
 	float TurnRadius = 20.0f;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Kart")
 	float TurnFriction = 0.08f;
-	UPROPERTY(ReplicatedUsing="OnRep_ReplicatedTran")
-	FTransform ReplicatedTran = GetActorTransform();
+	// UPROPERTY(ReplicatedUsing="OnRep_ReplicatedTran")
+	// FTransform ReplicatedTran = GetActorTransform();
 	// UPROPERTY(ReplicatedUsing="OnRep_ReplicatedSpeed")
 	// float ReplicatedSpeed = 0.0f;
+	// UPROPERTY(Replicated)
+	// float ForwardAxis = 0.0f;
+	// UPROPERTY(Replicated)
+	// float RightAxis = 0.0f;
 	UPROPERTY(Replicated)
-	float ForwardAxis = 0.0f;
-	UPROPERTY(Replicated)
-	float RightAxis = 0.0f;
+	FGoKartMove LastMove;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ServerState)
+	FGoKartState ServerState;
 
 private:
 	void UpdateLocation(float DeltaTime);
