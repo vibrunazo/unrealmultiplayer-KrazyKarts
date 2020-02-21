@@ -5,6 +5,7 @@
 #include "DrawDebugHelpers.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/World.h"
+#include "GameFrameWork/GameState.h"
 
 // Sets default values
 AGoKart::AGoKart()
@@ -53,13 +54,13 @@ void AGoKart::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	FGoKartMove NewMove = CreateMove(DeltaTime);
-	if (IsLocallyControlled())
-	{
-		Server_Move(NewMove);
-	}
 	if (!HasAuthority())
 	{
 		SimulateMove(NewMove);
+	}
+	if (IsLocallyControlled())
+	{
+		Server_Move(NewMove);
 	}
 	FString SpeedString = FString::Printf(TEXT("%F"), CurSpeed);
 	FString FAxisString = FString::Printf(TEXT("%F"), LastMove.ForwardAxis);
@@ -91,7 +92,6 @@ void AGoKart::MoveRight(float Val)
 
 void AGoKart::Server_Move_Implementation(FGoKartMove Move)
 {
-	// LastMove = Move;
 	SimulateMove(Move);
 	ServerState.LastMove = Move;
 	ServerState.Transform = GetActorTransform();
@@ -103,7 +103,7 @@ bool AGoKart::Server_Move_Validate(FGoKartMove Move)
 	return (FMath::Abs(Move.ForwardAxis) <= 1) &&(FMath::Abs(Move.RightAxis) <= 1);
 }
 
-void AGoKart::SimulateMove(FGoKartMove Move)
+void AGoKart::SimulateMove(const FGoKartMove& Move)
 {
 	UpdateRotation(Move);
 	UpdateLocation(Move);
@@ -113,7 +113,7 @@ FGoKartMove AGoKart::CreateMove(float DeltaTime)
 {
 	FGoKartMove Move;
 	Move.DeltaTime = DeltaTime;
-	Move.Time = GetWorld()->TimeSeconds;
+	Move.Time = GetWorld()->GetGameState()->GetServerWorldTimeSeconds();
 	Move.ForwardAxis = LastMove.ForwardAxis;
 	Move.RightAxis = LastMove.RightAxis;
 	if (!HasAuthority() && IsLocallyControlled())
@@ -136,7 +136,10 @@ void AGoKart::ClearPastMoves()
 void AGoKart::UpdateRotation(FGoKartMove Move)
 {
 	CurTurnSpeed += TurnAccel * Move.DeltaTime * Move.RightAxis;
-	if (CurTurnSpeed * Move.RightAxis <= 0) CurTurnSpeed *= (1 - TurnFriction);
+	if (CurTurnSpeed * Move.RightAxis <= 0) {
+		CurTurnSpeed *= (1 - TurnFriction);
+		if (FMath::Abs(CurTurnSpeed) < 0.1) CurTurnSpeed = 0;
+	}
 	CurTurnSpeed = FMath::Clamp(CurTurnSpeed, -1.0f, 1.0f);
 	float TurnAngle = CurSpeed * CurTurnSpeed / TurnRadius;
 	FQuat NewRotation(GetActorUpVector(), FMath::DegreesToRadians(TurnAngle));
@@ -168,5 +171,10 @@ void AGoKart::OnRep_ServerState()
 	CurTurnSpeed = ServerState.CurTurnSpeed;
 	LastMove.ForwardAxis = ServerState.LastMove.ForwardAxis;
 	LastMove.RightAxis = ServerState.LastMove.RightAxis;
+	for (auto &&Move : PastMoves)
+	{
+		SimulateMove(Move);
+	}
+	
 }
 

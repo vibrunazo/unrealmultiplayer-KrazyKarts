@@ -102,7 +102,7 @@ private:
 	void ClearPastMoves();
 	void UpdateLocation(FGoKartMove Move);
 	void UpdateRotation(FGoKartMove Move);
-	void SimulateMove(FGoKartMove Move);
+	void SimulateMove(const FGoKartMove& Move);
 	// Unacknowledged Moves by the server
 	TArray<FGoKartMove> PastMoves;
 
