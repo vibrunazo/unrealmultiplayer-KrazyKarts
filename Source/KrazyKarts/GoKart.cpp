@@ -28,12 +28,6 @@ void AGoKart::BeginPlay()
 void AGoKart::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    // DOREPLIFETIME( AGoKart, ReplicatedTran );
-    // DOREPLIFETIME( AGoKart, CurSpeed );
-    // DOREPLIFETIME( AGoKart, CurTurnSpeed );
-    // DOREPLIFETIME( AGoKart, ForwardAxis );
-    // DOREPLIFETIME( AGoKart, RightAxis );
-    DOREPLIFETIME( AGoKart, LastMove );
     DOREPLIFETIME( AGoKart, ServerState );
 }
 
@@ -59,19 +53,20 @@ void AGoKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UpdateRotation(DeltaTime);
-	UpdateLocation(DeltaTime);
-
-	if (HasAuthority()) 
+	if (IsLocallyControlled())
 	{
-		ServerState.Transform = GetActorTransform();
-		ServerState.CurSpeed = CurSpeed;
-		ServerState.CurTurnSpeed = CurTurnSpeed;
-		// ServerState.LastMove
+		LastMove.DeltaTime = DeltaTime;
+		LastMove.Time = GetWorld()->TimeSeconds;
+		Server_Move(LastMove);
 	}
-	// FString SpeedString = FString::Printf(TEXT("%F"), ReplicatedSpeed);
+	if (!HasAuthority())
+	{
+		LastMove.DeltaTime = DeltaTime;
+		LastMove.Time = GetWorld()->TimeSeconds;
+		SimulateMove(LastMove);
+	}
 	FString SpeedString = FString::Printf(TEXT("%F"), CurSpeed);
-	FString TurnString = FString::Printf(TEXT("%F"), CurTurnSpeed);
+	FString TurnString = FString::Printf(TEXT("%F"), LastMove.ForwardAxis);
 	DrawDebugString(GetWorld(), FVector(0, 0, 100), GetEnumText(GetLocalRole()), this, FColor::Green, 0.0f);
 	DrawDebugString(GetWorld(), FVector(0, 0, 130), ServerState.Transform.GetLocation().ToString(), this, FColor::Yellow, 0.0f);
 	DrawDebugString(GetWorld(), FVector(0, 0, 160), SpeedString, this, FColor::Yellow, 0.0f);
@@ -91,55 +86,37 @@ void AGoKart::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 void AGoKart::MoveForward(float Val)
 {
-	// ForwardAxis = Val;
-	// Server_MoveForward(Val);
 	LastMove.ForwardAxis = Val;
-	LastMove.DeltaTime = GetWorld()->GetDeltaSeconds();
-	LastMove.Time = GetWorld()->TimeSeconds;
-	Server_Move(LastMove);
-	
 }
 void AGoKart::MoveRight(float Val)
 {
-	// RightAxis = Val;
-	// Server_MoveRight(Val);
 	LastMove.RightAxis = Val;
-	LastMove.DeltaTime = GetWorld()->GetDeltaSeconds();
-	LastMove.Time = GetWorld()->TimeSeconds;
-	Server_Move(LastMove);
 }
 
 void AGoKart::Server_Move_Implementation(FGoKartMove Move)
 {
-	LastMove.RightAxis = Move.RightAxis;
-	LastMove.ForwardAxis = Move.ForwardAxis;
+	LastMove = Move;
+	SimulateMove(Move);
+	ServerState.LastMove = Move;
+	ServerState.Transform = GetActorTransform();
+	ServerState.CurSpeed = CurSpeed;
+	ServerState.CurTurnSpeed = CurTurnSpeed;
 }
 bool AGoKart::Server_Move_Validate(FGoKartMove Move)
 {
 	return (FMath::Abs(Move.ForwardAxis) <= 1) &&(FMath::Abs(Move.RightAxis) <= 1);
 }
-// void AGoKart::Server_MoveForward_Implementation(float Val)
-// {
-// 	ForwardAxis = Val;
-// }
-// bool AGoKart::Server_MoveForward_Validate(float Val)
-// {
-// 	return FMath::Abs(Val) <= 1;
-// }
 
-// void AGoKart::Server_MoveRight_Implementation(float Val)
-// {
-// 	RightAxis = Val;
-// }
-// bool AGoKart::Server_MoveRight_Validate(float Val)
-// {
-// 	return FMath::Abs(Val) <= 1;
-// }
-
-void AGoKart::UpdateRotation(float DeltaTime)
+void AGoKart::SimulateMove(FGoKartMove Move)
 {
-	CurTurnSpeed += TurnAccel * DeltaTime * LastMove.RightAxis;
-	if (CurTurnSpeed * LastMove.RightAxis <= 0) CurTurnSpeed *= (1 - TurnFriction);
+	UpdateRotation(Move);
+	UpdateLocation(Move);
+}
+
+void AGoKart::UpdateRotation(FGoKartMove Move)
+{
+	CurTurnSpeed += TurnAccel * Move.DeltaTime * Move.RightAxis;
+	if (CurTurnSpeed * Move.RightAxis <= 0) CurTurnSpeed *= (1 - TurnFriction);
 	CurTurnSpeed = FMath::Clamp(CurTurnSpeed, -1.0f, 1.0f);
 	float TurnAngle = CurSpeed * CurTurnSpeed / TurnRadius;
 	FQuat NewRotation(GetActorUpVector(), FMath::DegreesToRadians(TurnAngle));
@@ -147,10 +124,18 @@ void AGoKart::UpdateRotation(float DeltaTime)
 	AddActorWorldRotation(NewRotation);
 }
 
-void AGoKart::UpdateLocation(float DeltaTime)
+void AGoKart::UpdateLocation(FGoKartMove Move)
 {
-	CurSpeed += DeltaTime * Accel * LastMove.ForwardAxis;
+	if (GetLocalRole() == ROLE_SimulatedProxy)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UpLoc1 SimProxy %f, %f, %f"), Move.ForwardAxis, CurSpeed, Move.DeltaTime);
+	}
+	CurSpeed += Move.DeltaTime * Accel * Move.ForwardAxis;
 	CurSpeed *= (1.0f - Friction);
+	if (GetLocalRole() == ROLE_SimulatedProxy)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UpLoc2 SimProxy %f, %f"), Move.ForwardAxis, CurSpeed);
+	}
 	if (FMath::Abs(CurSpeed) < 1.0f) CurSpeed = 0.0f;
 	FVector NewSpeed = GetActorForwardVector() * CurSpeed;
 
@@ -164,14 +149,11 @@ void AGoKart::UpdateLocation(float DeltaTime)
 
 void AGoKart::OnRep_ServerState()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Replicated Transforms! on %s"), *GetEnumText(GetLocalRole()));
+	UE_LOG(LogTemp, Warning, TEXT("Replicated ServerState! on %s"), *GetEnumText(GetLocalRole()));
 	SetActorTransform(ServerState.Transform);
 	CurSpeed = ServerState.CurSpeed;
 	CurTurnSpeed = ServerState.CurTurnSpeed;
+	LastMove.ForwardAxis = ServerState.LastMove.ForwardAxis;
+	LastMove.RightAxis = ServerState.LastMove.RightAxis;
 }
 
-// void AGoKart::OnRep_ReplicatedSpeed()
-// {
-// 	CurSpeed = ReplicatedSpeed;
-// 	UE_LOG(LogTemp, Warning, TEXT("Replicated Speed of %d! on %s"), CurSpeed, *GetEnumText(GetLocalRole()));
-// }

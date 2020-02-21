@@ -91,14 +91,15 @@ public:
 	// float ForwardAxis = 0.0f;
 	// UPROPERTY(Replicated)
 	// float RightAxis = 0.0f;
-	UPROPERTY(Replicated)
+	// UPROPERTY(Replicated)
 	FGoKartMove LastMove;
 
 	UPROPERTY(ReplicatedUsing = OnRep_ServerState)
 	FGoKartState ServerState;
 
 private:
-	void UpdateLocation(float DeltaTime);
-	void UpdateRotation(float DeltaTime);
+	void UpdateLocation(FGoKartMove Move);
+	void UpdateRotation(FGoKartMove Move);
+	void SimulateMove(FGoKartMove Move);
 
 };
