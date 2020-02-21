@@ -98,8 +98,12 @@ public:
 	FGoKartState ServerState;
 
 private:
+	FGoKartMove CreateMove(float DeltaTime);
+	void ClearPastMoves();
 	void UpdateLocation(FGoKartMove Move);
 	void UpdateRotation(FGoKartMove Move);
 	void SimulateMove(FGoKartMove Move);
+	// Unacknowledged Moves by the server
+	TArray<FGoKartMove> PastMoves;
 
 };

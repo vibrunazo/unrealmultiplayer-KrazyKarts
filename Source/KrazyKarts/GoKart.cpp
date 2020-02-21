@@ -12,7 +12,6 @@ AGoKart::AGoKart()
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	bReplicates = true;
-
 }
 
 // Called when the game starts or when spawned
@@ -53,24 +52,21 @@ void AGoKart::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	FGoKartMove NewMove = CreateMove(DeltaTime);
 	if (IsLocallyControlled())
 	{
-		LastMove.DeltaTime = DeltaTime;
-		LastMove.Time = GetWorld()->TimeSeconds;
-		Server_Move(LastMove);
+		Server_Move(NewMove);
 	}
 	if (!HasAuthority())
 	{
-		LastMove.DeltaTime = DeltaTime;
-		LastMove.Time = GetWorld()->TimeSeconds;
-		SimulateMove(LastMove);
+		SimulateMove(NewMove);
 	}
 	FString SpeedString = FString::Printf(TEXT("%F"), CurSpeed);
-	FString TurnString = FString::Printf(TEXT("%F"), LastMove.ForwardAxis);
+	FString FAxisString = FString::Printf(TEXT("%F"), LastMove.ForwardAxis);
 	DrawDebugString(GetWorld(), FVector(0, 0, 100), GetEnumText(GetLocalRole()), this, FColor::Green, 0.0f);
 	DrawDebugString(GetWorld(), FVector(0, 0, 130), ServerState.Transform.GetLocation().ToString(), this, FColor::Yellow, 0.0f);
 	DrawDebugString(GetWorld(), FVector(0, 0, 160), SpeedString, this, FColor::Yellow, 0.0f);
-	DrawDebugString(GetWorld(), FVector(0, 0, 190), TurnString, this, FColor::Yellow, 0.0f);
+	DrawDebugString(GetWorld(), FVector(0, 0, 190), FAxisString, this, FColor::Yellow, 0.0f);
 }
 
 // Called to bind functionality to input
@@ -95,7 +91,7 @@ void AGoKart::MoveRight(float Val)
 
 void AGoKart::Server_Move_Implementation(FGoKartMove Move)
 {
-	LastMove = Move;
+	// LastMove = Move;
 	SimulateMove(Move);
 	ServerState.LastMove = Move;
 	ServerState.Transform = GetActorTransform();
@@ -113,6 +109,30 @@ void AGoKart::SimulateMove(FGoKartMove Move)
 	UpdateLocation(Move);
 }
 
+FGoKartMove AGoKart::CreateMove(float DeltaTime)
+{
+	FGoKartMove Move;
+	Move.DeltaTime = DeltaTime;
+	Move.Time = GetWorld()->TimeSeconds;
+	Move.ForwardAxis = LastMove.ForwardAxis;
+	Move.RightAxis = LastMove.RightAxis;
+	if (!HasAuthority() && IsLocallyControlled())
+	{
+		PastMoves.Add(Move);
+		UE_LOG(LogTemp, Warning, TEXT("Queue length: %d"), PastMoves.Num());
+	}
+	return Move;
+}
+
+// Keeps only moves that happened after the LastMove in the ServerState
+void AGoKart::ClearPastMoves()
+{
+	PastMoves = PastMoves.FilterByPredicate([&](const FGoKartMove Move){
+		return Move.Time > ServerState.LastMove.Time;
+	});
+	// UE_LOG(LogTemp, Warning, TEXT("Clearing Past: %d, Filter: %d, CurTime: %f,  LastMove: %f"), PastMoves.Num(), Filter.Num(), CurTime, ServerState.LastMove.Time);
+}
+
 void AGoKart::UpdateRotation(FGoKartMove Move)
 {
 	CurTurnSpeed += TurnAccel * Move.DeltaTime * Move.RightAxis;
@@ -126,16 +146,8 @@ void AGoKart::UpdateRotation(FGoKartMove Move)
 
 void AGoKart::UpdateLocation(FGoKartMove Move)
 {
-	if (GetLocalRole() == ROLE_SimulatedProxy)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("UpLoc1 SimProxy %f, %f, %f"), Move.ForwardAxis, CurSpeed, Move.DeltaTime);
-	}
 	CurSpeed += Move.DeltaTime * Accel * Move.ForwardAxis;
 	CurSpeed *= (1.0f - Friction);
-	if (GetLocalRole() == ROLE_SimulatedProxy)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("UpLoc2 SimProxy %f, %f"), Move.ForwardAxis, CurSpeed);
-	}
 	if (FMath::Abs(CurSpeed) < 1.0f) CurSpeed = 0.0f;
 	FVector NewSpeed = GetActorForwardVector() * CurSpeed;
 
@@ -150,6 +162,7 @@ void AGoKart::UpdateLocation(FGoKartMove Move)
 void AGoKart::OnRep_ServerState()
 {
 	UE_LOG(LogTemp, Warning, TEXT("Replicated ServerState! on %s"), *GetEnumText(GetLocalRole()));
+	ClearPastMoves();
 	SetActorTransform(ServerState.Transform);
 	CurSpeed = ServerState.CurSpeed;
 	CurTurnSpeed = ServerState.CurTurnSpeed;
